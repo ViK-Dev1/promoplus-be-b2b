@@ -1,0 +1,7 @@
+Per startare questo servizio:
+0.Attenzione la pwd del DB è nella cartella DB
+1.Posizionarsi dal terminale nella cartella AuthS\Code (deve essere disponibile il main.py)
+2.Startare il server per le api
+    uvicorn main:app --reload --host 0.0.0.0 --port 8001
+
+3.vedere come lanciarlo su un'istanza container python
