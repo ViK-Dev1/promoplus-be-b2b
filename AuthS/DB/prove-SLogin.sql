@@ -1,0 +1,28 @@
+SELECT * FROM AuthS.Users;
+SELECT * FROM AuthS.LogLoginActivity;
+
+
+SELECT id, username, email, dtRegistration, userDisabled
+FROM AuthS.Users AS a
+WHERE a.pwd = '$2b$12$2D7Cdb8dd4Ng.YLMZVvehOIFg48Eh2r7J/B.sudfguFE/W82mBfH.' AND
+  (a.username = 'bobsmith' 
+   OR 
+   a.email = 'bob.smith@company.com')
+LIMIT 1
+
+SELECT logslogin.id, logslogin.loginResult, logslogin.attemptNum, logslogin.dtLogin
+FROM AuthS.Users AS usr
+ INNER JOIN AuthS.LogLoginActivity AS logslogin ON logslogin.userId = usr.id
+        AND usr.email = 'bob.smith@company.com'
+WHERE logslogin.dtLogin >= '2024-10-13 22:10:00'
+ORDER BY logslogin.dtLogin DESC
+LIMIT 1
+
+, dtLogin = '2024-10-13 23:30:00'
+UPDATE AuthS.LogLoginActivity
+SET attemptNum = 4, loginResult = 'WP'
+WHERE id = 27
+
+UPDATE AuthS.Users
+SET userDisabled = 0
+WHERE id = 3
