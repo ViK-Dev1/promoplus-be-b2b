@@ -2,6 +2,7 @@
 
 from http.client import HTTPResponse
 import sys
+import anyio
 from fastapi import Body, FastAPI, HTTPException, status, Depends, Header
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -11,12 +12,15 @@ import uvicorn
 # Request e Response
 from BL.CommonFun import CreateErrorResponse, GetServiceJWTToken
 from Database.db import get_db
+from Middleware.AdminCheckMiddleware import AdminCheckMiddleware
 from Middleware.AuthCheckMiddleware import AuthCheckMiddleware
 from Middleware.ICAuthCheckMiddleware import ICAuthCheckMiddleware
+from Middleware.ErrorHandlerMiddleware import ErrorHandlerMiddleware
 from ReqResModels.ReqLogin import ReqLogin
+from ReqResModels.ReqUserData import ReqUserData
 
 # Business logic
-from BL import ProtectedRoutes, SLogin
+from BL import ProtectedRoutes, SConfirmEmail, SICChangeUsrData, SLogin, SICReactivateUsr, SICChangeEmail
 
 app = FastAPI(openapi_url=None)
 protectedRoutes = ProtectedRoutes.ProtectedRoutes()
@@ -26,7 +30,13 @@ serviceID = ''
 # MIDDLEWARE
 ## l'ordine in cui vengono controllati: da quello più in basso a quello più in alto
 
-## 2. ICAuthCheck - applied to routes for internal communication
+## 4. ErrorHandlerMiddleware - capture any error / exception that might occur while executing middleware code before BL
+app.add_middleware(ErrorHandlerMiddleware)
+
+## 3. AdminCheckMiddleware - checks if the user who is calling is an admin
+app.add_middleware(AdminCheckMiddleware, protectedRoutes = protectedRoutes.adminProtectedRoutes)
+
+## 2. ICAuthCheckMiddleware - applied to routes for internal communication
 app.add_middleware(ICAuthCheckMiddleware, protectedRoutes = protectedRoutes.icProtectedRoutes)
 
 ## 1. AuthCheckMiddleware - applied to routes that require authentication
@@ -35,25 +45,33 @@ app.add_middleware(AuthCheckMiddleware, protectedRoutes = protectedRoutes.authPr
 #CONTROLLERS
 
 ## Public services
-@app.post("/login")
-async def login(request: ReqLogin = Body(), db: Session = Depends(get_db)):
-    return SLogin.sLogin(request, db)
-    
-@app.post("/register")
+@app.post("/confirmEMail") #da fare
+async def confirmEmail(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SConfirmEmail.sConfirmEmail(request, db)
+
+@app.post("/register") #da fare
 async def register():
     return "ciaooo"
 
-@app.post("/changePwd")
+@app.post("/login") #ok
+async def login(request: ReqLogin = Body(), db: Session = Depends(get_db)):
+    return SLogin.sLogin(request, db)
+
+@app.post("/changePwd") #da fare
 async def changePwd():
     return "ciaooo"
 
-@app.post("/ICChangeUsr")
-async def changeUsr():
-    return "ICChangeUsr funziona"
+@app.post("/confirmOP-A1") #da fare
 
-@app.post("/ICChangeEmail")
-async def changeEmail():
-    return "ICChangeEmail funziona"
+
+## Internal Communication services
+@app.post("/ICReactivateUsr") #ok
+async def changeUsr(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SICReactivateUsr.sICReactivateUsr(request, db)
+
+@app.post("/ICChangeUsrData") #da fare
+async def ICChangeUsrData(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SICChangeUsrData.sICChangeUsrData(request, db)
 
 # Common errors handlers
 ## BAD REQUEST
@@ -64,6 +82,11 @@ async def validation_exception_handler(req, exc):
     field1 = err1["loc"][1]
     errMsg1 = err1["msg"]
     errDetails["field"] = field1
+    if 'email' in str(field1).lower() and 'pattern' in errMsg1:
+        errMsg1 = 'Il valore inserito ha un formato non valido'
+    if 'username' in str(field1).lower() and 'pattern' in errMsg1:
+        errMsg1 = "Il valore inserito non puo' contenere spazi"
+        
     errDetails["message"] = errMsg1
 
     raise CreateErrorResponse(status.HTTP_400_BAD_REQUEST, errDetails)
@@ -72,8 +95,27 @@ async def validation_exception_handler(req, exc):
 @app.exception_handler(RuntimeError)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())    
+@app.exception_handler(IndexError)
+async def serverError_handler(req, exc):
+    if exc is not dict:
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
-
+@app.exception_handler(Exception)
+async def serverError_handler(req, exc):
+    if exc is not dict:
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
+@app.exception_handler(TypeError)
+async def serverError_handler(req, exc):
+    if exc is not dict:
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
+@app.exception_handler(anyio.WouldBlock)
+async def serverError_handler(req, exc):
+    if exc is not dict:
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
+@app.exception_handler(anyio.EndOfStream)
+async def serverError_handler(req, exc):
+    if exc is not dict:
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 
 def main():
     #int(sys.argv[1])
