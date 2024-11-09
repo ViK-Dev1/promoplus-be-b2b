@@ -1,11 +1,13 @@
 
 from datetime import datetime, timedelta
-import hashlib
-import hmac
-from fastapi import HTTPException, Response, status
+from fastapi import HTTPException
 import jwt
+from sqlalchemy.orm import Session
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 
 from Config.appsettings import SATE_SERVICE_ACCESS_TOKEN_EXP, SKS_SECRETKEY_SERVICE
+from Database.CommonQuery import GetQSelectUser
+
 
 ## common Functions
 
@@ -53,7 +55,12 @@ def GetServiceJWTToken(serviceName: str) -> bytes:
     return serviceJWTToken
 
 # generate JWT token
-def GenerateToken(skJWTConfig: str, expTimeConfig, tokenBody: dict):
+def GenerateToken(skJWTConfig: str, expTimeConfig, tokenBody: dict, expTimeScale = 'mm'):
+    if expTimeScale == 'mm':
+        expTimeConfig = expTimeConfig
+    elif expTimeScale == 'hh':
+        expTimeConfig = expTimeConfig *60
+
     at_expiry_delta = timedelta(minutes=expTimeConfig)
     to_encode = {
         "sub": tokenBody
@@ -65,3 +72,18 @@ def GenerateToken(skJWTConfig: str, expTimeConfig, tokenBody: dict):
     except Exception as e1:
         RuntimeError('An error occurred while generating jwt token')
     return encoded_jwt
+
+# Get user from DB
+def get_user_fromDB(email: str, db: Session) -> list:
+    query = GetQSelectUser({
+        'email': email
+    })
+    try:
+        res1 = db.execute(query.query, query.params).all()
+        if len(res1) == 1:
+            return res1
+    except Exception as e1:
+        raise RuntimeError('DB-Q error: SLogin / getUser')
+    return []
+
+# Send email asyncronously
