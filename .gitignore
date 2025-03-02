@@ -2,3 +2,4 @@
 AuthS/DB/configNecessari.txt
 *.pyc
 AuthS/Code/Config/appsettings.py
+/Docs/build
