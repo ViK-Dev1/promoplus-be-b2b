@@ -24,5 +24,12 @@ SET attemptNum = 4, loginResult = 'WP'
 WHERE id = 27
 
 UPDATE AuthS.Users
-SET userDisabled = 0
-WHERE id = 3
+SET userID_OP = 6
+WHERE id = 4
+
+SELECT *
+FROM Users;
+
+INSERT INTO Users (username, email, pwd, dtRegistration, dtChangedPwd, userID_OP)
+VALUES ('admin-HV', 'vikram.harshit@protonmail.com', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lS', '2024-11-09 15:15:00', CURRENT_TIMESTAMP, 6);
+

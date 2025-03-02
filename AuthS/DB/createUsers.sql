@@ -6,7 +6,10 @@ CREATE TABLE Users (
     lastPwd CHAR(60) NULL,
     dtRegistration DATETIME NOT NULL,
     dtChangedPwd DATETIME NULL,
-    userDisabled BOOLEAN DEFAULT FALSE
+    userDisabled BOOLEAN DEFAULT FALSE,
+	usabilityTime,
+	usabilityDays,
+	userID_OP INTEGER NULL
 );
 
 -- define indexes for username and password
