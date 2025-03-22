@@ -3,13 +3,6 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# Per indicare la directory dei sorgenti
-import os, sys
-sys.path.insert(0, os.path.abspath('../../AuthS/Code'))
-sys.path.insert(0, os.path.abspath('../../AuthS/Code/Config'))
-sys.path.insert(0, os.path.abspath('../../AuthS/Code/Database'))
-sys.path.insert(0, os.path.abspath('../../AuthS/Code/BL'))
-
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
