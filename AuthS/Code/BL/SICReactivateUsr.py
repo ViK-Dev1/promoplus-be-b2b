@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from BL.CommonFun import get_user_fromDB
 from fastapi import Response, status
 from Database.QuerySICReactivateUsr import GetQUpdateReactivateUser
-from Models.UsrData import UsrData
 from ReqResModels.ReqUserData import ReqUserData
 
 # Riattiva l'utenza dell'utente di cui si indica la mail
