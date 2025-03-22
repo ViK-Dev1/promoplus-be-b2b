@@ -1,6 +1,9 @@
-SELECT * FROM AuthS.Users;
+USE AuthS;
+
+SELECT * FROM Users;
 SELECT * FROM AuthS.LogLoginActivity;
 
+SELECT a;
 
 SELECT id, username, email, dtRegistration, userDisabled
 FROM AuthS.Users AS a
@@ -33,3 +36,6 @@ FROM Users;
 INSERT INTO Users (username, email, pwd, dtRegistration, dtChangedPwd, userID_OP)
 VALUES ('admin-HV', 'vikram.harshit@protonmail.com', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lS', '2024-11-09 15:15:00', CURRENT_TIMESTAMP, 6);
 
+SELECT A.*
+FROM AuthS.Users AS A
+limit 2
