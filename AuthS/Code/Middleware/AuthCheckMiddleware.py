@@ -3,8 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.types import ASGIApp
 import jwt
-from jwt import ExpiredSignatureError, InvalidSignatureError
-from Config.appsettings import SKJWT_SECRETKEY_JWT
+from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError
 from BL.CommonFun import IsNullOrEmpyStr
 
 # UserLoggedAuthCheck
@@ -41,9 +40,7 @@ class AuthCheckMiddleware(BaseHTTPMiddleware):
             # Extract the token from the header
             token = auth_header.split(" ")[1]
 
-            if IsNullOrEmpyStr(SKJWT_SECRETKEY_JWT):
-                raise RuntimeError('CONFIG KEY NOT FOUND: SKJWT')
-            skjwt = SKJWT_SECRETKEY_JWT
+            skjwt = ''
             try:
                 payload = jwt.decode(token, skjwt, algorithms=["HS256"])
             except (Exception, ExpiredSignatureError, InvalidSignatureError) as decodeExcp:

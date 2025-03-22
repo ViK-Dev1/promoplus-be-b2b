@@ -4,7 +4,6 @@ from starlette.requests import Request
 from starlette.types import ASGIApp
 import jwt
 from jwt import ExpiredSignatureError, InvalidSignatureError
-from Config.appsettings import SKJWT_SECRETKEY_JWT
 from BL.CommonFun import IsNullOrEmpyStr
 
 # ICAuthCheckMiddleware
@@ -32,9 +31,7 @@ class AdminCheckMiddleware(BaseHTTPMiddleware):
             auth_header = request.headers.get("Authorization")
             token = auth_header.split(" ")[1]
 
-            if IsNullOrEmpyStr(SKJWT_SECRETKEY_JWT):
-                raise RuntimeError('CONFIG KEY NOT FOUND: SKJWT')
-            sks = SKJWT_SECRETKEY_JWT
+            sks = ''
             try:
                 payload = jwt.decode(token, sks, algorithms=["HS256"])
                 username = payload["sub"].get('username')
