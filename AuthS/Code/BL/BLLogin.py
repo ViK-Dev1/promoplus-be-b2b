@@ -1,23 +1,24 @@
 from datetime import datetime, timedelta
 import bcrypt
 from fastapi import Depends, HTTPException, status
-import jwt.algorithms
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import jwt
 
-
-from Models.LogLoginActivity import LogLoginActivity
-from Config.appsettings import UATE_USER_ACCESS_TOKEN_EXP
-from Config.appsettings import LATP_LOGIN_ATTEMPT_TIME_PERIOD
-from Config.appsettings import SKJWT_SECRETKEY_JWT
-from Config.appsettings import SSP_SALT_SECRET_PWD
-from BL.CommonFun import CreateErrorResponse, GenerateToken, IsNullOrEmpyStr, get_user_fromDB
+from Models.Constants import WRONG_PWD, CHG_PWD
+from Config.appsettings import (
+    ULTE_USER_LOGIN_TOKEN_EXP, LATP_LAST_ATTEMPT_TIME_PERIOD,
+    SSP_SALT_SECRET_PWD, CPP_CHANGE_PWD_PERIOD
+)
+from BL.CommonFun import (
+    CreateErrorResponse, GenerateToken, 
+    IsNullOrEmpyStr, get_user_fromDB
+)
 from Database.db import get_db
 
-from Models.UsrData import UsrData
+from Models.UserData import UserData
 from ReqResModels.ReqLogin import ReqLogin
-from ReqResModels.ResLogin import ResLogin
+from ReqResModels.ResLogin import ResLogin, UsrData1
 
 # DB Query for this service
 from Database.QuerySLogin import GetQInsertLogLoginRecord
@@ -25,7 +26,7 @@ from Database.QuerySLogin import GetQUpdateLogLoginRecord
 from Database.QuerySLogin import GetQUpdateDisableUser
 from Database.QuerySLogin import GetQSelectWrongLoginAttempts
 
-def sLogin(request: ReqLogin, db: Session):
+def login(request: ReqLogin, db: Session):
     # calculate the hashed pwd
     hashedPwd = hash_pwd(request.password)
     
@@ -34,43 +35,64 @@ def sLogin(request: ReqLogin, db: Session):
 
     if len(usrFound1) == 1:
         #utente trovato
-        usrFound = UsrData(
-            usrFound1[0][0],
-            usrFound1[0][1],
-            usrFound1[0][2],
-            usrFound1[0][3].encode('utf-8'),
-            usrFound1[0][4],
-            usrFound1[0][5]
+        usrFound = UserData(
+            id=usrFound1[0][0], 
+            username=usrFound1[0][1], 
+            email=usrFound1[0][2], 
+            pwd=usrFound1[0][3].encode('utf-8'),
+            dtPwdChanged=usrFound1[0][4],  
+            dtRegistration=usrFound1[0][5],
+            pwdExpired=usrFound1[0][6],
+            userDisabledPwd=usrFound1[0][7],
+            userDisabled=usrFound1[0][8],
+            usabilityTime=usrFound1[0][9], 
+            usabilityDays=usrFound1[0][10] 
         )
                    
         #Recupero il numero di tentativi errati dai logs
-        loginAttempt = get_loginAttemptDB(usrFound.email, db)
+        loginAttempt = get_loginAttemptDB(usrFound.id, db)
         if(usrFound.pwd == hashedPwd):
-            if(usrFound.userDisabled == 1):
+            if(usrFound.userDisabled == 1 or
+               usrFound.userDisabledPwd == 1):
                 #utente disabilitato
                 raise CreateErrorResponse(status.HTTP_401_UNAUTHORIZED, 
                                           "L'utenza indicata è stata disabilitata. Reimpostare la password o contattare l'assistenza per maggiori informazioni")
             else:
                 #tutto ok, genero il token e consento l'accesso
-                # jwt token = id, email
-                if IsNullOrEmpyStr(SKJWT_SECRETKEY_JWT):
-                    raise RuntimeError('CONFIG KEY NOT FOUND: SKJWT')
-                skJWTConfig = SKJWT_SECRETKEY_JWT
-                if IsNullOrEmpyStr(UATE_USER_ACCESS_TOKEN_EXP):
-                    raise RuntimeError('CONFIG KEY NOT FOUND: UATE')
-                expTimeConfig = UATE_USER_ACCESS_TOKEN_EXP
+                # jwt token = id, email, username
+                if IsNullOrEmpyStr(ULTE_USER_LOGIN_TOKEN_EXP):
+                    raise RuntimeError('CONFIG KEY NOT FOUND: ULTE')
+                expTimeConfig = ULTE_USER_LOGIN_TOKEN_EXP
                 tokenBody = {
                     'id': usrFound.id,
                     'email': usrFound.email,
                     'username': usrFound.username
                 }
-                tokenJWT = GenerateToken(skJWTConfig, expTimeConfig, tokenBody)
+                tokenJWT = GenerateToken(expTimeConfig, tokenBody)
+                # se la password è scaduta o è passato più del numero di giorni 
+                # indicati nella chiave di config
+                # imposto nelle requiredActions di cambiare la password
+                requiredActions = []
+                if IsNullOrEmpyStr(CPP_CHANGE_PWD_PERIOD):
+                    raise RuntimeError('CONFIG KEY NOT FOUND: CPP')
+                cpp = int(CPP_CHANGE_PWD_PERIOD)
+                changePwdRequired = False
+                if usrFound.dtPwdChanged != None:
+                    changePwdDay = usrFound.dtPwdChanged + timedelta(days=cpp)
+                    if datetime.now() >= changePwdDay:
+                        changePwdRequired = True
+                if(usrFound.pwdExpired == 1 or changePwdRequired):
+                    requiredActions.append(CHG_PWD)
                 upd_loginAttemptLogs(True, 0, loginAttempt[1], usrFound.id, loginAttempt[1], db)
+                res_usrdata1 = UsrData1(
+                    usrFound.username, usrFound.email,
+                    usrFound.dtPwdChanged, usrFound.dtRegistration,
+                    usrFound.usabilityTime, usrFound.usabilityDays
+                )
                 return ResLogin(
-                    username = usrFound.username,
-                    email = usrFound.email,
-                    registrationDT = usrFound.dtRegistration,
-                    token = tokenJWT
+                    userData = res_usrdata1,
+                    token = tokenJWT,
+                    requiredAction = requiredActions
                 )
         else:
             #credenziali errate
@@ -124,19 +146,20 @@ def upd_loginAttemptLogs(loginOK: bool, logAttemptId: int, attemptNum: int, user
         raise RuntimeError('DB-Q error: SLogin / updLoginAttempt')
 
 
-#ritorna il numero di login attempt sbagliati effettuati nell'ultima 1h dall'ultima login positiva
-def get_loginAttemptDB(email: str, db: Session):
-    if IsNullOrEmpyStr(LATP_LOGIN_ATTEMPT_TIME_PERIOD):
+# Ritorna il numero di login attempt sbagliati effettuati nell'ultima 1h dall'ultima login positiva
+# o in base al tempo indicato dalle configurazioni
+def get_loginAttemptDB(idUsr: int, db: Session):
+    if IsNullOrEmpyStr(LATP_LAST_ATTEMPT_TIME_PERIOD):
         raise RuntimeError('CONFIG KEY NOT FOUND: LATP')
-    timeFrom = datetime.now() - timedelta(minutes=LATP_LOGIN_ATTEMPT_TIME_PERIOD)
+    timeFrom = datetime.now() - timedelta(minutes=LATP_LAST_ATTEMPT_TIME_PERIOD)
     query = GetQSelectWrongLoginAttempts({
-        'email': email,
+        'idUsr': idUsr,
         'timeFrom': timeFrom
     })
     ris = [0,0,0]
     try:
         res1 = db.execute(query.query, query.params).all()
-        if len(res1) == 1 and res1[0][1] == 'WP':
+        if len(res1) == 1 and res1[0][1] == WRONG_PWD:
             ris[0] = res1[0][0] #id
             ris[1] = res1[0][2] #attemptNumber
             ris[2] = res1[0][1] #loginResult

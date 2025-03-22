@@ -1,8 +1,9 @@
 from sqlalchemy import text
+from Models.Constants import Tab_LOGLOGINACTIVITIES, Tab_USERS
 from Database.Query import Query
 
 def GetQInsertLogLoginRecord(fields: dict) -> Query:
-    q1 = text('INSERT INTO AuthS.LogLoginActivity (userId, loginResult, dtLogin, attemptNum)'+
+    q1 = text('INSERT INTO '+Tab_LOGLOGINACTIVITIES+' (userId, loginResult, dtLogin, attemptNum)'+
                              ' VALUES'+
                              ' (:userId, :loginResult, :dtLogin, :attemptNum)')
     p1 = {
@@ -14,7 +15,7 @@ def GetQInsertLogLoginRecord(fields: dict) -> Query:
     return Query(q1,p1)
 
 def GetQUpdateLogLoginRecord(fields: dict) -> Query:
-    q1 = text('UPDATE AuthS.LogLoginActivity'+
+    q1 = text('UPDATE '+Tab_LOGLOGINACTIVITIES+
                              ' SET attemptNum = :attemptNum, loginResult = :loginResult, dtLogin = :dtLogin'+
                              ' WHERE id = :id')
     p1 = {
@@ -26,8 +27,8 @@ def GetQUpdateLogLoginRecord(fields: dict) -> Query:
     return Query(q1,p1)
 
 def GetQUpdateDisableUser(fields: dict) -> Query:
-    q1 = text('UPDATE AuthS.Users'+
-                             ' SET userDisabled = :userDisabled'+
+    q1 = text('UPDATE '+Tab_USERS+
+                             ' SET userDisabledPwd = :userDisabled'+
                              ' WHERE id = :userId')
     p1 = {
         'userId': fields['userId'],
@@ -37,14 +38,13 @@ def GetQUpdateDisableUser(fields: dict) -> Query:
 
 def GetQSelectWrongLoginAttempts(fields: dict) -> Query:
     q1 = text('SELECT logslogin.id, logslogin.loginResult, logslogin.attemptNum' +
-            ' FROM AuthS.Users AS usr' +
-            ' INNER JOIN AuthS.LogLoginActivity AS logslogin ON logslogin.userId = usr.id' +
-            '        AND usr.email = :email' +
-            ' WHERE logslogin.dtLogin >= :timeFrom' +
+            ' FROM '+Tab_USERS+' AS usr' +
+            ' INNER JOIN '+Tab_LOGLOGINACTIVITIES+' AS logslogin ON logslogin.userId = usr.id' +
+            ' WHERE usr.id = :idUsr AND logslogin.dtLogin >= :timeFrom' +
             ' ORDER BY logslogin.dtLogin DESC' +
             ' LIMIT 1')
     p1 = {
-        'email': fields['email'],
+        'idUsr': fields['idUsr'],
         'timeFrom': fields['timeFrom']
     } 
     return Query(q1,p1)

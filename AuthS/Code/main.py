@@ -1,16 +1,18 @@
 # Main controller to manage all the endpoints within this service
 
+# region Import di librerie e tool
 from http.client import HTTPResponse
 import sys
 import anyio
-from fastapi import Body, FastAPI, HTTPException, status, Depends, Header
+from fastapi import Body, Response, FastAPI, HTTPException, status, Depends, Header
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 import uvicorn
+# endregion
 
-# Request e Response
-from BL.CommonFun import CreateErrorResponse, GetServiceJWTToken
+# region Import: middleware, BL, db, request & response
+from BL import BLLogin
 from Database.db import get_db
 from Middleware.AdminCheckMiddleware import AdminCheckMiddleware
 from Middleware.AuthCheckMiddleware import AuthCheckMiddleware
@@ -18,17 +20,18 @@ from Middleware.ICAuthCheckMiddleware import ICAuthCheckMiddleware
 from Middleware.ErrorHandlerMiddleware import ErrorHandlerMiddleware
 from ReqResModels.ReqLogin import ReqLogin
 from ReqResModels.ReqUserData import ReqUserData
-
-# Business logic
-from BL import ProtectedRoutes, SConfirmEmail, SICChangeUsrData, SLogin, SICReactivateUsr, SICChangeEmail
+from BL import ProtectedRoutes, SConfirmEmail, SICChangeUsrData, SICReactivateUsr, BLCheckSDB
+from BL.CommonFun import CreateErrorResponse, GetServiceJWTToken
+# endregion
 
 app = FastAPI(openapi_url=None)
 protectedRoutes = ProtectedRoutes.ProtectedRoutes()
 serviceName = 'AuthS'
 serviceID = ''
 
-# MIDDLEWARE
-## l'ordine in cui vengono controllati: da quello più in basso a quello più in alto
+# region MIDDLEWARE
+## Associazione dei middleware con il controller API principale
+## L'ordine in cui vengono controllati: da quello più in basso a quello più in alto
 
 ## 4. ErrorHandlerMiddleware - capture any error / exception that might occur while executing middleware code before BL
 app.add_middleware(ErrorHandlerMiddleware)
@@ -41,31 +44,46 @@ app.add_middleware(ICAuthCheckMiddleware, protectedRoutes = protectedRoutes.icPr
 
 ## 1. AuthCheckMiddleware - applied to routes that require authentication
 app.add_middleware(AuthCheckMiddleware, protectedRoutes = protectedRoutes.authProtectedRoutes)
+# endregion
 
-#CONTROLLERS
+# region CONTROLLERS
+## [A] - Endpoint per amministratori
+@app.get("/checkS") #dopo aver sistemato il login, metterlo dietro al middleware che controlla se si è un admin
+async def checkS():
+    return Response(status_code=status.HTTP_200_OK)
 
-## Public services
-@app.post("/confirmEMail") #da fare
-async def confirmEmail(request: ReqUserData = Body(), db: Session = Depends(get_db)):
-    return SConfirmEmail.sConfirmEmail(request, db)
+@app.get("/checkSDB") #stessa cosa scritta sopra
+async def checkSDB(db: Session = Depends(get_db)):
+    return BLCheckSDB.checkSDB(db)
 
-@app.post("/register") #da fare
-async def register():
-    return "ciaooo"
-
+## [P] - Endpoint pubblici
 @app.post("/login") #ok
 async def login(request: ReqLogin = Body(), db: Session = Depends(get_db)):
-    return SLogin.sLogin(request, db)
+    return BLLogin.login(request, db)
+
+@app.post("/sendChangePwdLink") #da fare
+async def sendChangePwdLink():
+    return "sendChangePwdLink ok"
+
+@app.post("/confirmOP-A1") #da fare
+async def confirmOPA1():
+    return "confirmOP-A1 ok"
 
 @app.post("/changePwd") #da fare
 async def changePwd():
-    return "ciaooo"
-
-@app.post("/confirmOP-A1") #da fare
+    return "changePwd ok"
 
 
-## Internal Communication services
-@app.post("/ICReactivateUsr") #ok
+## [IC] - Internal Communication services
+@app.post("/ICRegisterUsers") #da fare
+async def icRegisterUsers(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SICReactivateUsr.sICReactivateUsr(request, db)
+
+@app.post("/ICChangeUsrData") #da fare
+async def ICChangeUsrData(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SICChangeUsrData.sICChangeUsrData(request, db)
+
+@app.post("/ICReactivateUsr") #da fare
 async def changeUsr(request: ReqUserData = Body(), db: Session = Depends(get_db)):
     return SICReactivateUsr.sICReactivateUsr(request, db)
 
@@ -73,7 +91,16 @@ async def changeUsr(request: ReqUserData = Body(), db: Session = Depends(get_db)
 async def ICChangeUsrData(request: ReqUserData = Body(), db: Session = Depends(get_db)):
     return SICChangeUsrData.sICChangeUsrData(request, db)
 
-# Common errors handlers
+@app.post("/ICReactivateUsr") #da fare
+async def changeUsr(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SICReactivateUsr.sICReactivateUsr(request, db)
+
+@app.post("/ICChangeUsrData") #da fare
+async def ICChangeUsrData(request: ReqUserData = Body(), db: Session = Depends(get_db)):
+    return SICChangeUsrData.sICChangeUsrData(request, db)
+# endregion 
+
+# region Common errors handlers
 ## BAD REQUEST
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(req, exc):
@@ -116,19 +143,23 @@ async def serverError_handler(req, exc):
 async def serverError_handler(req, exc):
     if exc is not dict:
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
+# endregion 
 
+'''
+Per startare numerose istanze decommentare le righe commentate e chiamare il main indicando come argomento la porta
+'''
 def main():
     #int(sys.argv[1])
     #check important configurations
     #serviceName = sys.argv[2]
     try:
         serviceID = GetServiceJWTToken(serviceName)
-    except RuntimeError as e1:
+    except (RuntimeError, UnboundLocalError) as e1:
         print(f' | Service: {serviceName} | '+e1.__str__())
         return
-    print(f' | Service: {serviceName} | {serviceID}')
+    #print(f' | Service: {serviceName} | {serviceID}')
     #start the server
-    uvicorn.run(app, host="0.0.0.0", port=8001)#int(sys.argv[1]))
+    uvicorn.run(app, host="0.0.0.0", port=8001) #int(sys.argv[1]))
 
 if __name__ == "__main__":
     main()
