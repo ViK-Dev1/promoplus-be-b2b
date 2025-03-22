@@ -1,3 +1,7 @@
+.pre{
+  font-weight: 500;
+}
+
 [data-theme=dark] a:link, 
 [data-theme=dark] a:visited,
 [data-theme=dark] .pre {
