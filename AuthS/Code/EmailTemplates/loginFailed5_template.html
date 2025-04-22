@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .wrapper {
+            width: 100%;
+            text-align: center;
+        }
+        .logo {
+            margin: 0 auto;
+            display: block;
+        }
+        .container {
+            max-width: 600px;
+            margin: 10px auto;
+            padding: 5px 20px 5px  20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #f23d73;
+            color: #fff;
+            padding: 10px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content p, .content strong {
+    		color: #000 !important;
+		}
+        .footer {
+            background-color: #f23d73;
+            color: #fff;
+            padding: 10px;
+            border-radius: 0 0 10px 10px;
+            text-align: center;
+        }
+        h2{
+            font-size: 1.2em
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <img class="logo" src="cid:logo" alt="Logo" style="width: 200px; height: 150;">
+    </div>
+    <div class="container">
+        <div class="header">
+            <h2>PROFILO DISATTIVATO</h2>
+        </div>
+        <div class="content">
+            <p>In data <strong>{{ current_time }}</strong>, abbiamo rilevato che sono stati effettuati <strong>5 tentativi di accesso non riusciti</strong> al tuo profilo. 
+            Per motivi di sicurezza, il tuo <strong>account</strong> è stato temporaneamente <strong>disattivato</strong>.</p>
+            <p>Ti invitiamo a resettare la password oppure contattare il nostro team di supporto per ricevere assistenza.</p>
+            <p>Grazie per la comprensione.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 {{system_name}} - Tutti i diritti riservati</p>
+        </div>
+    </div>
+</body>
+</html>

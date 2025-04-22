@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .wrapper {
+            width: 100%;
+            text-align: center;
+        }
+        .logo {
+            margin: 0 auto;
+            display: block;
+        }
+        .container {
+            max-width: 600px;
+            margin: 10px auto;
+            padding: 5px 20px 5px  20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #5fa4ed;
+            color: #fff;
+            padding: 10px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content p, .content strong {
+    		color: #000 !important;
+		}
+        .footer {
+            background-color: #5fa4ed;
+            color: #fff;
+            padding: 10px;
+            border-radius: 0 0 10px 10px;
+            text-align: center;
+        }
+        h2{
+            font-size: 1.2em
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <img class="logo" src="cid:logo" alt="Logo" style="width: 200px; height: 150;">
+    </div>
+    <div class="container">
+        <div class="header">
+            <h2>RESET PASSWORD</h2>
+        </div>
+        <div class="content">
+            <p>Cliccando il seguente <strong>link</strong> potrai modificare la tua password:
+                [LINK PER MODIFICA PWD]</p>
+            <p>Se non hai effettuato questa richiesta, ti preghiamo di ignorare questa email o contattare il nostro team di supporto.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 {{system_name}} - Tutti i diritti riservati</p>
+        </div>
+    </div>
+</body>
+</html>
