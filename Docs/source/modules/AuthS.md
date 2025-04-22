@@ -33,11 +33,11 @@ Microservizio dedicato per la registrazione e per l'autenticazione. Nello specif
 <br>
 ### Specifiche dettagliate
 1. <b><u>Registrazione</u></b><br>
-  Questo applicativo verrà utilizzato solo dai partner e dal loro staff. Per tale motivo la loro registrazione non si potrà fare in autonomia, ma verrà effettuata dagli utenti amministratori. Sulla base di un elenco di utenti da registrare, verrà creata un'utenza per ciascuno di essi (se non è già presente).
+  Questo applicativo verrà utilizzato solo dai partner (i miei clienti) e dal loro staff. Per tale motivo la loro registrazione non si potrà fare in autonomia, ma verrà effettuata dagli utenti amministratori. Sulla base di un elenco di utenti da registrare, verrà creata un'utenza per ciascuno di essi (se non è già presente).
 1. <b><u>Autenticazione</u></b><br>
 	Ciascun utente registrato può effettuare l'operazione di login indicando email / username e password. Per questioni di sicurezza, ad ogni accesso verrà inviata un'e-mail per indicare dell'accesso avvenuto e non sarà possibile accedere da più dispositivi contemporaneamente. Nel caso di tentativi di accesso sbagliati, la mail verrà inviata dopo il 5° e ultimo tentativo.
-	<br><b>Attenzione: </b>Le utenze di amministratore saranno le uniche ad avere come username USERNAME-admin.
-	<br><b>Attenzione: </b>Le utenze dei partner avranno come username USERNAME-partner.
+	<br><b>Attenzione: </b>Le varie utenze si contraddistinguono con un campo specifico chiamato userType (0-utente normale, 1-admin, 2-partner, 3-admin collaboratore, ...)
+	<br><b>Attenzione: </b>Gli admin sono gli amministratori supremi. Gli admin collaboratori sono amministratori che però avranno una libertà di potere più limitata rispetto a quelli supremi.
 	<br><b>Attenzione: </b>Nel caso di utenze di amministratore e utenze di direzione del partner, l'operazione di login potrà avvenire in qualsiasi momento. Per quanto riguarda le utenze del gruppo staff, potranno essere vincolate a specifici orari e giornate per poter accedere al sistema.
 	<br>Riassumendo:
 	- Esito OK -> viene restituito un token jwt con cui l'utente potrà usare per usare le varie funzionalità utilizzabili solo da utenti registrati;
@@ -52,21 +52,21 @@ Microservizio dedicato per la registrazione e per l'autenticazione. Nello specif
 
 <br><i>Esempio</i><br>
 Una persona potrebbe essere autorizzata ad entrare:
-- in un orario specifico: (8-12;12:30-18:00) o all (qualsiasi orario)
-- giorni specifici: Lun;Gio;Sab;Dom o all (qualsiasi giorno)
+- in un orario specifico: (8-12;12:30-18:00) o qualsiasi orario (0-24). Esempio di salvataggio: 08:30-12:30;18:30-23:30 oppure all= 00:00-23.59
+- giorni specifici: Lun;Gio;Sab;Dom o all (qualsiasi giorno). Esempio di salvataggio: 0;1;2;3;4;5;6 oppure 7 tutti i giorni
 <br><br>
 ### Endpoints
 <b>[P]</b> - endpoint pubblico
+<br><b>[PNV]</b> - endpoint pubblico ma non visibili all'esterno - usato per operazioni di controllo / operazioni interne
 <br><b>[L]</b> - endpoint per utenti loggati
-<br><b>[IC]</b> - endpoint per la comunicazione interna 
+<br><b>[IC]</b> - endpoint per la comunicazione interna - richiamabili solo da altri microservizi
 <br><b>[A]</b> - endpoint solo per admin<br><br>
-- <span class='pre'>[A] | checkS</span><br>permette agli amministratori di controllare lo stato del servizio -> se tutto ok allora si riceverà un esito HTTP con status code = 200<br>
-- <span class='pre'>[A] | checkSDB</span><br>permette agli amministratori di controllare se il servizio riesce ad accedere correttamente al DB -> verrà eseguita una semplice query e se risulta tutto ok allora si riceverà un esito HTTP con status code = 200<br>
+- <span class='pre'>[PNV] | checkS</span><br>permette agli amministratori di controllare lo stato del servizio -> se tutto ok allora si riceverà un esito HTTP con status code = 200<br>
+- <span class='pre'>[PNV] | checkSDB</span><br>permette agli amministratori di controllare se il servizio riesce ad accedere correttamente al DB -> verrà eseguita una semplice query e se risulta tutto ok allora si riceverà un esito HTTP con status code = 200<br>
 - <span class='pre'>[P] | login</span><br>permette di effettuare il login
-  - esito OK entro il 5° tentativo: viene ritornato un token JWT + un elenco di azioni obbligatorie (cambio pwd) + si riceverà una mail che conferma l'accesso
+  - esito OK entro il 5° tentativo: viene ritornato un token JWT + si riceverà una mail che conferma l'accesso
   - esito KO : ritorna un errore opportuno. Se si ha raggiunto il 5° tentativo errato -> l'utenza viene disabilitata per i numerosi tentativi sbagliati + si riceverà una mail di avviso<br>
 - <span class='pre'>[P] | sendChangePwdLink</span><br>permette di ricevere una mail con il link per cambiare la password - Il link che si riceverà conterrà un token valido per 1gg e contenente informazioni interne (email e userId dell'utente che sta tentando di effettuare la modifica della password)<br>
-- <span class='pre'>[P] | confirmOP-A1</span><br> è l'endpoint che verrà spedito via mail insieme al token per il cambio password all'utente<br> Quando l'utente aprirà questo link, verrà effettuata una validazione del token e si procederà verso la schermata di cambio password<br>
 - <span class='pre'>[P] | changePwd</span><br>permette di cambiare la password agli utenti che forniscono un token JWT valido, in cui sono riportate le informazioni come email e username dell'utente che intende cambiare password. Come conferma si riceverà un token JWT aggiornato + si riceverà una mail che conferma il cambio della password<br>
 - <span class='pre'>[IC] | ICRegisterUsers</span><br>richiesta proveniente dal servizio UserS solamente da utenti di tipo amministratore - registra nuovi utenti<br>
 - <span class='pre'>[IC] | ICReactivateUsers</span><br>richiesta proveniente dal servizio UserS - riattiva le utenze degli utenti indicati, sia dal punto di vista del campo userDisabledPwd che userDisabled<br>
@@ -77,14 +77,15 @@ Una persona potrebbe essere autorizzata ad entrare:
 
 ### Tabelle
 In questa sezione vengono descritte le tabelle gestite in questo microservizio:
-- <span class='pre'>Users</span> (id, username, email, pwd, lastPwd, pwdExpired, dtPwdChanged, tokenChgPwd, dtRegistration, userDisabledPwd, userDisabled, usabilityTime, usabilityDays, token, userID_OP)<br>
+- <span class='pre'>Users</span> (id, username, email, userType, pwd, lastPwd, pwdExpired, dtPwdChanged, tokenChgPwd, dtRegistration, userDisabledPwd, userDisabled, usabilityTime, usabilityDays, token, userID_OP)<br>
   <b>Note particolari</b>:
+  1. <u>userType</u> è necessario per indicare la tipologia di utente (0-utente normale, 1-admin, 2-partner, 3-admin collaboratore, ecc...)
   1. <u>lastPwd</u> è necessario per obbligare l'utente ad utilizzare una pwd diversa da quella precedente
   1. <u>pwdExpired</u> sarà un campo booleano per indicare che la password è scaduta e per obbligare l'utente a cambiarla. (Grazie a dei job automatici da far girare ogni giorno, si controllerà se è passato un mese dalla precedente modifica della password, e in tal caso si attiverà e obbligherà l'utente alla modifica della stessa non appena proverà ad effetuare il login)
   1. <u>tokenChgPwd</u> token dalla validità di 1gg, che verrà inviato via mail all'utente per consentirgli di cambiare la password
   1. <u>userDisabledPwd</u> indica se l'utente è stato disabilitato in seguito a numerosi tentativi di accesso errati
   1. <u>userDisabled</u> indica che l'utente è stato disabilitato da un amministratore o un utente autorizzato a gestire quell'utenza
-  1. <u>usabilityTime</u> e usabilityDays indicano gli orari in cui quell'utente può accedere e usare il sistema
+  1. <u>usabilityTime</u> e <u>usabilityDays</u> indicano gli orari in cui quell'utente può accedere e usare il sistema. Esempio usabilityTime (08:30-15:00;19:00-20.25 | se vuoto = l'utente non può accedere), usabilityDays (0;2;5;5 oppure 7=tutti i giorni; se vuoto = l'utente non può accedere)
   1. <u>token</u> memorizza il token che viene emesso in fase di login. Questo dato ha una durata massima prefissata, ma se l'utente effettua l'accesso da un altro dispositivo, allora questo campo verrà sovrascritto, e il token precedente anche se ancora valido, non sarà più utilizzabile.
   1. <u>userID_OP</u> è l'id dello User che ha eseguito l'ultima operazione di creazione / modifica. Questo campo sarà presente in tutte le tabelle in cui l'utente può andare ad aggiungere / modificare i vari record.
 
