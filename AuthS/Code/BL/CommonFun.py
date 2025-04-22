@@ -1,20 +1,21 @@
 
 from datetime import datetime, timedelta
+import logging
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 import jwt
 from sqlalchemy.orm import Session
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from cryptography.hazmat.primitives import serialization
 import os
 
 from Config.appsettings import (
-    SATE_SERVICE_ACCESS_TOKEN_EXP, SKS_SECRETKEY_SERVICE, 
+    SATE_SERVICE_ACCESS_TOKEN_EXP, 
     PrivateK_JWT_FileName, PublicK_JWT__FileName,
     CONFIG_FLD    
 )
 from Database.CommonQuery import GetQSelectUser
 
-#JWT token manager (singleton)
+# JWT token manager (singleton)
 class JWTTokenKeysManager():
     _instance = None
 
@@ -32,7 +33,7 @@ class JWTTokenKeysManager():
             cls.ReadPublicKey(cls._instance, cwd)
             # Test effettuato e viene correttamente letto solo una volta da file
             # poi si recuperano queste info dall'istanza già creata
-            print('- -- --- ---- JWT TKN MANAGER creato ---- --- -- -')
+            #print('- -- --- ---- JWT TKN MANAGER creato ---- --- -- -')
         return cls._instance
 
     def GetConfigFolder(self) -> str:
@@ -71,6 +72,35 @@ class JWTTokenKeysManager():
     def GetPublicKey(self) -> str:
         return self.publicKey
 
+# Logging manager
+class LoggingManager():
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(LoggingManager, cls).__new__(cls, *args, **kwargs)
+            
+            logging.basicConfig(
+                filename='..\\Logs\\auths_logs.log',
+                format='%(asctime)s %(levelname)s: %(message)s',
+                level=logging.ERROR
+            )
+
+            logger = logging.getLogger(__name__)
+
+            cls._instance.logger = logger
+            print('- -- --- ---- LOGGING MANAGER creato ---- --- -- -')
+        return cls._instance
+    
+    def error(self, msg: str):
+        self.logger.error(msg)
+
+    def critical(self, msg: str):
+        self.logger.critical(msg)
+    
+    def warning(self, msg: str):
+        self.logger.warning(msg)
+
 ## common Functions
 
 def IsNullOrEmpyStr(tempStr: str) -> bool:
@@ -90,13 +120,21 @@ def CreateErrorResponse(statusCode: str, errorMsg: str) -> HTTPException:
 		detail= errorMsg
 	)
 
+def CreateErrorResponseHttp(statusCode: str, errorMsg: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=statusCode,
+        content={"detail": errorMsg}
+    )
+
 def GetServiceJWTToken(serviceName: str) -> bytes:
     """
     Ritorna un token JWT che identifica il servizio corrente
     """   
     sate = SATE_SERVICE_ACCESS_TOKEN_EXP
+    now = datetime.utcnow()
     tokenName = {
-        "serviceName": serviceName
+        "serviceName": serviceName,
+        "jwtValidityStart": now
     }
     serviceJWTToken = GenerateToken(sate, tokenName)
 
@@ -118,7 +156,7 @@ def GenerateToken(expTimeConfig, tokenBody: dict, expTimeScale = 'mm'):
 
     at_expiry_delta = timedelta(minutes=expTimeConfig)
     to_encode = {
-        "sub": tokenBody
+        "sub": str(tokenBody)
     }
     expiry_dt = datetime.utcnow() + at_expiry_delta
     to_encode.update({"exp": expiry_dt})
@@ -128,6 +166,18 @@ def GenerateToken(expTimeConfig, tokenBody: dict, expTimeScale = 'mm'):
     except Exception as e1:
         RuntimeError('An error occurred while generating jwt token')
     return encoded_jwt
+
+def ReadToken(token: str):
+    '''
+    Permette di leggere un token JWT
+    '''
+    jwtTKNManager = JWTTokenKeysManager()
+    pubKey = jwtTKNManager.GetPublicKey()
+    if jwtTKNManager == None or IsNullOrEmpyStr(pubKey):
+        raise RuntimeError('detail": "jwtTKNManager error')
+    decoded_jwt = ''
+    decoded_jwt = jwt.decode(token, pubKey, algorithms=["RS256"])
+    return dict(decoded_jwt)
 
 def get_user_fromDB(email: str, db: Session) -> list:
     """
@@ -144,4 +194,3 @@ def get_user_fromDB(email: str, db: Session) -> list:
         raise RuntimeError('DB-Q error: SLogin / getUser')
     return []
 
-# Send email asyncronously

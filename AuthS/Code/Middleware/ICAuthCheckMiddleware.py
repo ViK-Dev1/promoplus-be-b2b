@@ -5,7 +5,7 @@ from starlette.types import ASGIApp
 import jwt
 from jwt import ExpiredSignatureError, InvalidSignatureError
 from Config.appsettings import SKS_SECRETKEY_SERVICE
-from BL.CommonFun import IsNullOrEmpyStr
+from BL.CommonFun import IsNullOrEmpyStr, ReadToken
 
 # ICAuthCheckMiddleware
 
@@ -28,39 +28,37 @@ class ICAuthCheckMiddleware(BaseHTTPMiddleware):
         # Check if the route is in our protected routes
         if (current_route in protectedRoutesList):
 
-            # Extract the authorization header and serviceName
+            # Estraggo gli headers che mi servono
             auth_header = request.headers.get("AuthorizationS")
-            serviceNameH = request.headers.get("serviceName")
+            serviceNameH = request.headers.get("ServiceName")
             
-            # Check if the header exists and starts with "Bearer"
-            if (not auth_header 
-                or auth_header == ''
+            # Controllo gli headers recuperati
+            if (auth_header == None 
+                or auth_header.strip() == ''
                 or not auth_header.startswith("Bearer")
-                or len(auth_header.split(' '))!=2
-                ):
-                return Response(status_code=status.HTTP_401_UNAUTHORIZED)
+                or len(auth_header.split(' ')) !=2):
+                return Response(status_code=status.HTTP_403_FORBIDDEN)
             
             if(serviceNameH == None
-               or serviceNameH == ''):
+               or serviceNameH.strip() == ''):
                 return Response(status_code=status.HTTP_403_FORBIDDEN)
 
             # Extract the token from the header
-            token = auth_header.split(" ")[1]
-
-            if IsNullOrEmpyStr(SKS_SECRETKEY_SERVICE):
-                raise RuntimeError('CONFIG KEY NOT FOUND: SKS')
-            sks = SKS_SECRETKEY_SERVICE
+            jwt_token = auth_header.split(" ")[1]
+            
             try:
-                payload = jwt.decode(token, sks, algorithms=["HS256"])
-                serviceNameTkn = payload["sub"].get('serviceName')
-                if(serviceNameTkn == None
-                   or serviceNameTkn == ''
-                   or serviceNameTkn != serviceNameH):
-                    return Response(status_code=status.HTTP_403_FORBIDDEN)
+                payload = ReadToken(jwt_token)
 
+                if payload is not None:
+                    payloadDict = eval(payload["sub"])
+                    serviceNameTkn = payloadDict.get('serviceName')
+                    if(serviceNameTkn == None
+                    or serviceNameTkn == ''
+                    or serviceNameTkn != serviceNameH):
+                        return Response(status_code=status.HTTP_403_FORBIDDEN)
+                
             except (Exception, ExpiredSignatureError, InvalidSignatureError) as decodeExcp:
-                #print(decodeExcp) #<----- per verificare perchè non è valido decommentare
                 return Response(status_code=status.HTTP_403_FORBIDDEN)
         
-        # If not a protected route, skip the authorization check
+        # Se non è una route protetta o se passa i controlli, proseguo
         return await call_next(request)

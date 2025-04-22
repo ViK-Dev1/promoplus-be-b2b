@@ -3,10 +3,12 @@
 # region Import di librerie e tool
 from http.client import HTTPResponse
 import sys
+import MySQLdb
 import anyio
-from fastapi import Body, Response, FastAPI, HTTPException, status, Depends, Header
+from fastapi import Body, Response, FastAPI, HTTPException, status, Depends, Header, BackgroundTasks
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
+import sqlalchemy
 from sqlalchemy.orm import Session
 import uvicorn
 # endregion
@@ -21,13 +23,14 @@ from Middleware.ErrorHandlerMiddleware import ErrorHandlerMiddleware
 from ReqResModels.ReqLogin import ReqLogin
 from ReqResModels.ReqUserData import ReqUserData
 from BL import ProtectedRoutes, SConfirmEmail, SICChangeUsrData, SICReactivateUsr, BLCheckSDB
-from BL.CommonFun import CreateErrorResponse, GetServiceJWTToken
+from BL.CommonFun import CreateErrorResponse, GetServiceJWTToken, LoggingManager
 # endregion
 
 app = FastAPI(openapi_url=None)
 protectedRoutes = ProtectedRoutes.ProtectedRoutes()
 serviceName = 'AuthS'
 serviceID = ''
+
 
 # region MIDDLEWARE
 ## Associazione dei middleware con il controller API principale
@@ -36,38 +39,36 @@ serviceID = ''
 ## 4. ErrorHandlerMiddleware - capture any error / exception that might occur while executing middleware code before BL
 app.add_middleware(ErrorHandlerMiddleware)
 
-## 3. AdminCheckMiddleware - checks if the user who is calling is an admin
-app.add_middleware(AdminCheckMiddleware, protectedRoutes = protectedRoutes.adminProtectedRoutes)
+## 3. [A] - AdminCheckMiddleware - checks if the user who is calling is an admin
+# non necessario qui
+# app.add_middleware(AdminCheckMiddleware, protectedRoutes = protectedRoutes.adminProtectedRoutes)
 
-## 2. ICAuthCheckMiddleware - applied to routes for internal communication
+## 2. [IC] - ICAuthCheckMiddleware - applied to routes for internal communication
 app.add_middleware(ICAuthCheckMiddleware, protectedRoutes = protectedRoutes.icProtectedRoutes)
 
-## 1. AuthCheckMiddleware - applied to routes that require authentication
-app.add_middleware(AuthCheckMiddleware, protectedRoutes = protectedRoutes.authProtectedRoutes)
+## 1. [L] - AuthCheckMiddleware - applied to routes that require authentication
+# non necessario qui
+# app.add_middleware(AuthCheckMiddleware, protectedRoutes = protectedRoutes.authProtectedRoutes)
 # endregion
 
 # region CONTROLLERS
 ## [A] - Endpoint per amministratori
-@app.get("/checkS") #dopo aver sistemato il login, metterlo dietro al middleware che controlla se si è un admin
+@app.get("/checkS") #ok
 async def checkS():
     return Response(status_code=status.HTTP_200_OK)
 
-@app.get("/checkSDB") #stessa cosa scritta sopra
+@app.get("/checkSDB") #ok
 async def checkSDB(db: Session = Depends(get_db)):
     return BLCheckSDB.checkSDB(db)
 
 ## [P] - Endpoint pubblici
 @app.post("/login") #ok
-async def login(request: ReqLogin = Body(), db: Session = Depends(get_db)):
-    return BLLogin.login(request, db)
+async def login(background_tasks: BackgroundTasks, request: ReqLogin = Body(), db: Session = Depends(get_db)):
+    return BLLogin.login(request, db, background_tasks)
 
 @app.post("/sendChangePwdLink") #da fare
 async def sendChangePwdLink():
     return "sendChangePwdLink ok"
-
-@app.post("/confirmOP-A1") #da fare
-async def confirmOPA1():
-    return "confirmOP-A1 ok"
 
 @app.post("/changePwd") #da fare
 async def changePwd():
@@ -75,6 +76,10 @@ async def changePwd():
 
 
 ## [IC] - Internal Communication services
+@app.get("/provaIC") #da fare
+async def provaIC():
+    return "provaIC ok"
+
 @app.post("/ICRegisterUsers") #da fare
 async def icRegisterUsers(request: ReqUserData = Body(), db: Session = Depends(get_db)):
     return SICReactivateUsr.sICReactivateUsr(request, db)
@@ -119,29 +124,45 @@ async def validation_exception_handler(req, exc):
     raise CreateErrorResponse(status.HTTP_400_BAD_REQUEST, errDetails)
 
 ## SERVER SIDE ERROR
+@app.exception_handler(sqlalchemy.exc.OperationalError)
+async def serverError_handler(req, exc):
+    if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
+@app.exception_handler(MySQLdb.OperationalError)
+async def serverError_handler(req, exc):
+    if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
+        raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 @app.exception_handler(RuntimeError)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())    
 @app.exception_handler(IndexError)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 @app.exception_handler(Exception)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 @app.exception_handler(TypeError)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 @app.exception_handler(anyio.WouldBlock)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 @app.exception_handler(anyio.EndOfStream)
 async def serverError_handler(req, exc):
     if exc is not dict:
+        LoggingManager().error(f"Server error | {exc.__str__()}")
         raise CreateErrorResponse(status.HTTP_500_INTERNAL_SERVER_ERROR, exc.__str__())
 # endregion 
 
@@ -155,11 +176,12 @@ def main():
     try:
         serviceID = GetServiceJWTToken(serviceName)
     except (RuntimeError, UnboundLocalError) as e1:
-        print(f' | Service: {serviceName} | '+e1.__str__())
+        #print(f' | Service: {serviceName} | '+e1.__str__())
         return
     #print(f' | Service: {serviceName} | {serviceID}')
     #start the server
-    uvicorn.run(app, host="0.0.0.0", port=8001) #int(sys.argv[1]))
+    uvicorn.run(app, host="0.0.0.0", port=8081) #int(sys.argv[1]))
+    # implementare un meccanismo che dal 55esimo minuto venga generato un nuovo token per il servizio e si inizi ad usare quello
 
 if __name__ == "__main__":
     main()

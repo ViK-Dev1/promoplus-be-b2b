@@ -5,7 +5,7 @@ DTO - Più completo e simile all'oggetto presente nel DB
 '''
 class UserData:
     def __init__(self, 
-            id, username, email, pwd, dtRegistration, 
+            id, username, email, userType, pwd, dtRegistration, 
             lastPwd=None, pwdExpired=False, dtPwdChanged=None, 
             tokenChgPwd=None, userDisabledPwd=False, 
             userDisabled=False, usabilityTime=None, 
@@ -13,6 +13,7 @@ class UserData:
         self.id = id
         self.username = username
         self.email = email
+        self.userType = userType
         self.pwd = pwd
         self.lastPwd = lastPwd
         self.pwdExpired = pwdExpired

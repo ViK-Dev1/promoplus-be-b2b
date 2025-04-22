@@ -3,7 +3,7 @@ from Models.Constants import Tab_USERS
 from Database.Query import Query
 
 def GetQSelectUser(fields: dict) -> Query:
-    q1 = text('SELECT id, username, email, pwd, dtPwdChanged, dtRegistration, '+
+    q1 = text('SELECT id, username, email, userType, pwd, dtPwdChanged, dtRegistration, '+
                  'pwdExpired, userDisabledPwd, userDisabled, '+
                  'usabilityTime, usabilityDays'+
                  ' FROM '+Tab_USERS+' AS a'+

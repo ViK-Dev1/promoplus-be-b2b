@@ -1,20 +1,19 @@
 
 class ProtectedRoutes:
     # routes that require authentication
-    authProtectedRoutes = [
-        'ICReactivateUsr',
-        'ICChangeUsr',
-        'ICChangeEmail'
-    ]
+    authProtectedRoutes = [] # aggiungere qualcosa se serve
 
     # routes for internal communication
     icProtectedRoutes = [
-        'ICReactivateUsr',
-        'ICChangeUsr',
-        'ICChangeEmail'
+        'ICRegisterUsers',
+        'ICReactivateUsers',
+        'ICDisableUsers',
+        'ICChangeUsrData',
+        'ICChangeUsrPwd',
+        'ICChangeUsersUsabilityTD',
+        'provaIC'
     ]
 
     # routes reserved for super user / admin
     adminProtectedRoutes = [
-        'ICReactivateUsr'
     ]

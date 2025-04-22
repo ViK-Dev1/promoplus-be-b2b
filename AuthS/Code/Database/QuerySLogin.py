@@ -3,14 +3,15 @@ from Models.Constants import Tab_LOGLOGINACTIVITIES, Tab_USERS
 from Database.Query import Query
 
 def GetQInsertLogLoginRecord(fields: dict) -> Query:
-    q1 = text('INSERT INTO '+Tab_LOGLOGINACTIVITIES+' (userId, loginResult, dtLogin, attemptNum)'+
+    q1 = text('INSERT INTO '+Tab_LOGLOGINACTIVITIES+' (userId, loginResult, dtLogin, attemptNum, token)'+
                              ' VALUES'+
-                             ' (:userId, :loginResult, :dtLogin, :attemptNum)')
+                             ' (:userId, :loginResult, :dtLogin, :attemptNum, :token)')
     p1 = {
         'userId': fields['userId'],
         'loginResult': "OK" if fields['loginOK'] else "WP",
         'dtLogin': fields['now'],
-        'attemptNum': fields['attemptNum']
+        'attemptNum': fields['attemptNum'],
+        'token': fields['token']
     }
     return Query(q1,p1)
 
@@ -47,4 +48,14 @@ def GetQSelectWrongLoginAttempts(fields: dict) -> Query:
         'idUsr': fields['idUsr'],
         'timeFrom': fields['timeFrom']
     } 
+    return Query(q1,p1)
+
+def GetQUpdSaveToken(fields: dict) -> Query:
+    q1 = text('UPDATE '+Tab_USERS+
+            ' SET token = :token'+
+            ' WHERE id = :userId')
+    p1 = {
+        'userId': fields['userId'],
+        'token': fields['token']
+    }
     return Query(q1,p1)

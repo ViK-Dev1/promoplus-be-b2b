@@ -11,3 +11,9 @@ WRONG_PWD = 'WP'
 # Azioni richieste
 CHG_PWD = 'CHGPWD'
 #password scaduta -> si richiede di cambiare la password
+
+# UserType
+USR_NORMALE = 0
+USR_ADMIN = 1
+USR_PARTNER = 2
+USR_ADMIN_COLLAB = 3
