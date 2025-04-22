@@ -4,7 +4,7 @@ CREATE TABLE LogLoginActivities (
     loginResult ENUM("OK", "WP") NOT NULL,
     dtLogin DATETIME NOT NULL,
     attemptNum INT DEFAULT 0,
-    token VARCHAR(255) NULL,
+    token VARCHAR(1000) NULL,
     FOREIGN KEY (userId) REFERENCES Users(id)
 );
 
