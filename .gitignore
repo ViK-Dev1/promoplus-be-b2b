@@ -5,3 +5,4 @@ AuthS/Code/Config/appsettings.py
 /Docs/build
 *.pem
 AuthS/Code/auths_logs.log
+AuthS/Logs/auths_logs.log
